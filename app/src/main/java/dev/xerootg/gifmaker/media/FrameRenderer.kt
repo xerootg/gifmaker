@@ -23,7 +23,11 @@ import kotlin.math.min
  * into the stored JPEG's coordinate space, region-decodes only that rectangle at a sample size
  * just above the output resolution, then orients and scales it onto the output canvas.
  */
-class FrameRenderer(private val context: Context) {
+class FrameRenderer(
+    private val context: Context,
+    /** Region decoding is the fast path on devices; tests turn it off (Robolectric stubs it out). */
+    private val useRegionDecoder: Boolean = true,
+) {
 
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 
@@ -107,7 +111,7 @@ class FrameRenderer(private val context: Context) {
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         // Fast path: decode only the needed rectangle.
-        try {
+        if (useRegionDecoder) try {
             context.contentResolver.openInputStream(frame.uri)?.use { stream ->
                 @Suppress("DEPRECATION")
                 val decoder = BitmapRegionDecoder.newInstance(stream, false)

@@ -37,6 +37,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Cache Robolectric android-all runtime
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+
       - name: Prepare signing key
         env:
           KS_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
