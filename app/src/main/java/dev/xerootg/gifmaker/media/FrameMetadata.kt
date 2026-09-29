@@ -24,9 +24,11 @@ object FrameMetadata {
     fun load(context: Context, uri: Uri, id: Long, pickIndex: Int): FrameItem? {
         val resolver = context.contentResolver
 
+        // decodeStream() always returns null with inJustDecodeBounds; only outWidth/outHeight matter.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         try {
-            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+            val stream = resolver.openInputStream(uri) ?: return null
+            stream.use { BitmapFactory.decodeStream(it, null, bounds) }
         } catch (_: Exception) {
             return null
         }
