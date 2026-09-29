@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history and tags for the release notes
 
       - uses: actions/setup-java@v4
         with:
@@ -98,8 +100,9 @@ jobs:
             echo "Build ${VERSION_NAME} (versionCode ${VERSION_CODE}) from ${GITHUB_SHA::7}."
             echo
             echo "### Changes"
-            git log --format='- %s' "$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD" 2>/dev/null \
-              | grep -v '^- Merge ' | head -30 || true
+            prev=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+            range=$([ -n "$prev" ] && echo "$prev..HEAD" || echo "HEAD")
+            git log --format='- %s' "$range" | grep -v '^- Merge ' | head -30 || true
             echo
             echo "Signing key: ${SIGNING_KEY_SOURCE}."
             echo "EOF"
