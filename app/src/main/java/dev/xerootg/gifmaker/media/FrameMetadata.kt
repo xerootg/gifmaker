@@ -41,10 +41,18 @@ object FrameMetadata {
                 val exif = ExifInterface(stream)
                 rotation = exif.rotationDegrees
                 flipped = exif.isFlipped
-                exifMillis = exif.dateTimeOriginal ?: exif.dateTimeDigitized ?: exif.dateTime
-                exifRaw = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                    ?: exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED)
-                    ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+                val candidates = listOf(
+                    Triple(ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_SUBSEC_TIME_ORIGINAL, ExifInterface.TAG_OFFSET_TIME_ORIGINAL),
+                    Triple(ExifInterface.TAG_DATETIME_DIGITIZED, ExifInterface.TAG_SUBSEC_TIME_DIGITIZED, ExifInterface.TAG_OFFSET_TIME_DIGITIZED),
+                    Triple(ExifInterface.TAG_DATETIME, ExifInterface.TAG_SUBSEC_TIME, ExifInterface.TAG_OFFSET_TIME),
+                )
+                for ((dateTag, subSecTag, offsetTag) in candidates) {
+                    val raw = exif.getAttribute(dateTag) ?: continue
+                    val parsed = parseExifDateTime(raw, exif.getAttribute(subSecTag), exif.getAttribute(offsetTag)) ?: continue
+                    exifMillis = parsed
+                    exifRaw = raw
+                    break
+                }
             }
         } catch (_: Exception) {
             // Not a JPEG with usable EXIF; fall through to the other sources.
@@ -119,6 +127,30 @@ object FrameMetadata {
 
     private fun format(millis: Long): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(millis)
+
+    /**
+     * Parses an EXIF "yyyy:MM:dd HH:mm:ss" value plus optional sub-second digits and a
+     * "+HH:MM" offset. Without an offset the wall time is taken as UTC, which keeps frames
+     * from the same camera correctly ordered relative to each other.
+     */
+    internal fun parseExifDateTime(dateTime: String, subSec: String?, offset: String?): Long? {
+        val trimmed = dateTime.trim()
+        if (trimmed.length < 19 || trimmed.startsWith(":") || trimmed.startsWith("0000")) return null
+        val fmt = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US)
+        fmt.isLenient = false
+        fmt.timeZone = if (offset != null && Regex("""[+-]\d{2}:\d{2}""").matches(offset.trim())) {
+            TimeZone.getTimeZone("GMT" + offset.trim())
+        } else {
+            TimeZone.getTimeZone("UTC")
+        }
+        val base = try {
+            fmt.parse(trimmed.substring(0, 19))?.time
+        } catch (_: Exception) {
+            null
+        } ?: return null
+        val millis = subSec?.trim()?.takeWhile { it.isDigit() }?.take(3)?.padEnd(3, '0')?.toIntOrNull() ?: 0
+        return base + millis
+    }
 
     internal fun dateFromName(name: String): Long? {
         nameDateTime.find(name)?.let { m ->

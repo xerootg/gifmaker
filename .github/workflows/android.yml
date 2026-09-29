@@ -23,8 +23,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Unit tests
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
+      - name: Unit tests and Lint
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug
 
       - name: Build debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
