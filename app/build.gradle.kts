@@ -14,9 +14,28 @@ android {
         applicationId = "dev.xerootg.gifmaker"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // CI passes a monotonically increasing build number so every release is an upgrade
+        // for Obtainium / the package manager; local builds fall back to 1 / "0.1.0-local".
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "0.1.0-local"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        // Release signing comes from the SIGNING_* environment variables (CI injects them from
+        // repository secrets, or from a per-run key when no secrets exist). Nothing is committed.
+        // Without them, local release builds fall back to the debug key so they still install.
+        create("release") {
+            val storePath = System.getenv("SIGNING_KEYSTORE")
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
     }
 
     buildTypes {
@@ -24,6 +43,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

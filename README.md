@@ -49,6 +49,22 @@ Design notes:
   every standard decoder, and is verified by unit tests against a reference decoder and Java's
   ImageIO GIF reader.
 
+## Installing with Obtainium
+
+Every push to `main` publishes a GitHub Release with a signed APK (`gifmaker-vX.Y.Z.apk`),
+so [Obtainium](https://github.com/ImranR98/Obtainium) can track the app straight from this
+repository:
+
+1. In Obtainium tap **Add App** and paste `https://github.com/xerootg/gifmaker`, or open
+   [`obtainium://add/https://github.com/xerootg/gifmaker`](obtainium://add/https://github.com/xerootg/gifmaker)
+   on the phone.
+2. Leave the defaults; the release APK is the only asset, and version names follow `0.1.<build>`.
+
+Releases are signed with the key held in the repository's secrets (see `docs/signing.md`), so each
+one installs as an update over the previous build. Until those secrets exist, CI signs with a
+throw-away key per run and the release notes say so; such builds install, but updating between
+them needs an uninstall first.
+
 ## Building
 
 Requires JDK 17+ and the Android SDK (platform 35, build-tools 35). Then:
@@ -57,8 +73,10 @@ Requires JDK 17+ and the Android SDK (platform 35, build-tools 35). Then:
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-The APK lands in `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions builds the same on
-every push and attaches the APK as a workflow artifact (and as a Release on `v*` tags).
+The debug APK lands in `app/build/outputs/apk/debug/app-debug.apk`; `:app:assembleRelease` produces
+the minified, signed build that CI ships. The workflow in `.github/workflows/release.yml` runs the
+unit tests and Lint, then on pushes to `main` publishes the signed release APK as a GitHub Release
+tagged `v0.1.<run number>`; pull requests only upload the APK as a workflow artifact.
 
 Minimum Android version: 8.0 (API 26). The encoded-GIF playback preview needs Android 9+; saving
 and sharing work everywhere.
